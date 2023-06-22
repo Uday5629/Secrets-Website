@@ -3,7 +3,10 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require('mongoose');
-const encrypt=require("mongoose-encryption")
+// const encrypt=require("mongoose-encryption")
+// const md5=require("MD5")
+const bcrypt=require("bcrypt")
+const saltRounds=10;
 
 const app = express();
 
@@ -26,7 +29,7 @@ const userSchema=new mongoose.Schema({
 });
 ////////////////////////////////Defining Encryption String////////////////////////
 
-userSchema.plugin(encrypt,{secret:process.env.SECRET,encryptedFields:["password"]});
+// userSchema.plugin(encrypt,{secret:process.env.SECRET,encryptedFields:["password"]});
 
 /////////////////////////////Creating a Model Based on Schema/////////////////////////////////////////////////////////
 
@@ -45,16 +48,19 @@ app.get("/register",function(req,res){
 })
 
 app.post("/register",function(req,res){
-    const newUser=new User({
-        email:req.body.username,
-        password:req.body.password
-    });
-    newUser.save()
-    .then(function(){
-        res.render("secrets");
-    })
-    .catch(function(err){
-        console.log(err);
+    
+    bcrypt.hash(req.body.password, saltRounds, function(err,hash){
+        const newUser=new User({
+            email:req.body.username,
+            password:hash
+        });
+        newUser.save()
+        .then(function(){
+            res.render("secrets");
+        })
+        .catch(function(err){
+            console.log(err);
+        })
     })
 })
 
@@ -67,12 +73,20 @@ app.post("/login",function(req,res){
         if(!foundUser){
             res.status(401).send("Invalid Username or Password");
         }
-        if(foundUser && foundUser.password!=password){
-            res.status(401).send("Invalid Username or Password");
-        }
-        else if(foundUser.password===password){
-            res.render("secrets");
-        }
+        // if(foundUser && foundUser.password!=password){
+        //     res.status(401).send("Invalid Username or Password");
+        // }
+        // else if(foundUser.password===password){
+        //     res.render("secrets");
+        // }
+        bcrypt.compare(password, foundUser.password).then(function(result) {
+            if(result === false){
+                res.status(401).send("Invalid Username or Password")
+            }
+            else if(result === true){
+                res.render("Secrets");
+            }
+        });
     })
     .catch(function(err){
         console.log(err);
